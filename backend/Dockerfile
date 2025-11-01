@@ -16,9 +16,6 @@ COPY . .
 # Generate Prisma Client
 RUN npm run prisma:generate || true
 
-# Push schema to DB (สร้าง table ถ้าไม่มี)
-RUN npx prisma db push
-
 # Build TypeScript
 RUN npm run build
 
