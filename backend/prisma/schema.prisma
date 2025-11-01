@@ -1,0 +1,94 @@
+// กำหนด client และ datasource
+generator client {
+  provider = "prisma-client-js" // ใช้ Prisma Client สำหรับเรียกใช้งาน DB
+}
+
+datasource db {
+  provider = "mysql"             // ใช้ฐานข้อมูลประเภท MySQL
+  url      = env("DATABASE_URL") // อ่าน URL ของ DB จากไฟล์ .env
+}
+
+// ตาราง User
+model User {
+  id        Int      @id @default(autoincrement()) // Primary key, เพิ่มอัตโนมัติ
+  username  String   @unique                      // ชื่อผู้ใช้ ห้ามซ้ำ
+  email     String   @unique                      // อีเมล ห้ามซ้ำ
+  password  String                                // รหัสผ่าน (เก็บแบบ hash)
+  role      Role                                  // บทบาทผู้ใช้ (ADMIN / CLINICIAN / RECEPTION)
+  createdAt DateTime @default(now())              // วันที่สร้าง
+  updatedAt DateTime @updatedAt                   // วันที่แก้ไขล่าสุด (อัปเดตอัตโนมัติ)
+
+  // ความสัมพันธ์กับ Appointment:
+  createdAppointments   Appointment[] @relation("CreatedBy")  // นัดที่ user นี้เป็นคนสร้าง
+  assignedAppointments  Appointment[] @relation("Clinician")  // นัดที่ user นี้เป็นหมอ (ผู้ดูแล)
+
+  @@map("users") // ชื่อตารางใน DB เป็น "users"
+}
+
+// Enum กำหนดประเภทบทบาทผู้ใช้
+enum Role {
+  CLINICIAN // แพทย์หรือผู้ให้คำปรึกษา
+  RECEPTION // พนักงานต้อนรับ
+  ADMIN     // ผู้ดูแลระบบ
+}
+
+// ตาราง Patient
+model Patient {
+  id                Int      @id @default(autoincrement()) // Primary key
+  recordNumber      String   @unique                      // รหัสประจำตัวผู้ป่วย (unique)
+  firstName         String                                // ชื่อจริง
+  lastName          String                                // นามสกุล
+  email             String   @unique                      // อีเมล ห้ามซ้ำ
+  phoneNumber       String                                // เบอร์โทรศัพท์
+  gender            String                                // เพศ
+  dateOfBirth       DateTime                              // วันเดือนปีเกิด
+  allergies         String?  @db.Text                     // ประวัติแพ้ยา (optional)
+  medicalHistory    String?  @db.Text                     // ประวัติการรักษา (optional)
+  currentMedications String? @db.Text                     // ยาที่ใช้อยู่ในปัจจุบัน (optional)
+  createdAt         DateTime @default(now())              // วันที่บันทึก
+  updatedAt         DateTime @updatedAt                   // วันที่อัปเดตล่าสุด
+
+  appointments Appointment[] // ความสัมพันธ์กับตาราง Appointment (นัดทั้งหมดของคนไข้)
+
+  @@map("patients") // ชื่อตารางจริงใน DB คือ "patients"
+}
+
+// ตาราง Appointment
+model Appointment {
+  id              Int      @id @default(autoincrement()) // Primary key
+  recordNumber    String   @unique                      // หมายเลขบันทึกการนัด (unique)
+  clinicianId     Int                                   // ID ของแพทย์ที่รับผิดชอบ
+  createdById     Int                                   // ID ของผู้สร้างการนัด
+  patientId       Int                                   // ID ของคนไข้ที่นัด
+  startTime       DateTime                              // เวลาเริ่มนัด
+  endTime         DateTime                              // เวลาสิ้นสุดนัด
+  note            String?  @db.Text                     // หมายเหตุทั่วไป (optional)
+  status          AppointmentStatus @default(PENDING)   // สถานะของนัด (ค่าเริ่มต้น = PENDING)
+  clinicianNote   String?  @db.Text                     // หมายเหตุจากแพทย์ (optional)
+  createdAt       DateTime @default(now())              // วันที่สร้าง
+  updatedAt       DateTime @updatedAt                   // วันที่อัปเดตล่าสุด
+
+  // ความสัมพันธ์กับตารางอื่น
+  clinician   User    @relation("Clinician", fields: [clinicianId], references: [id]) // เชื่อมกับ User (หมอ)
+  createdBy   User    @relation("CreatedBy", fields: [createdById], references: [id]) // เชื่อมกับ User (คนสร้าง)
+  patient     Patient @relation(fields: [patientId], references: [id])                // เชื่อมกับ Patient (คนไข้)
+
+  @@index([clinicianId, startTime, endTime]) // สร้าง index เพื่อให้ค้นหานัดตามหมอ+เวลาได้เร็วขึ้น
+  @@map("appointments") // ชื่อตารางจริงคือ "appointments"
+}
+
+// Enum กำหนดสถานะของการนัด
+enum AppointmentStatus {
+  PENDING
+  COMPLETED
+}
+
+// ตารางตัวนับ (Counter)
+// ใช้เก็บค่าตัวเลขเพิ่มอัตโนมัติ เช่น running number ของ recordNumber
+model Counter {
+  id    Int    @id @default(autoincrement()) // Primary key
+  name  String @unique                      // ชื่อตัวนับ (เช่น "patient_record", "appointment_number")
+  value Int    @default(0)                  // ค่าปัจจุบันของตัวนับ
+
+  @@map("counters") // ชื่อตารางจริงใน DB คือ "counters"
+}
