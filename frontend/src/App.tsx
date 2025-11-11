@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
+import Dashboard from './pages/Dashboard';
 import Patients from './pages/Patients';
 import Appointments from './pages/Appointments';
 
@@ -27,7 +28,18 @@ function AppRoutes() {
         path="/"
         element={
           <PrivateRoute>
-            <Navigate to="/patients" />
+            <Navigate to="/dashboard" />
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <Layout>
+              <Dashboard />
+            </Layout>
           </PrivateRoute>
         }
       />
